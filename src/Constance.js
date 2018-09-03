@@ -13,3 +13,5 @@ class Constance {
     }
   }
 }
+
+export default Constance
