@@ -25,6 +25,7 @@ class ScheduleWork {
   }
 
   completeUnitOfWork (workInProgress) {
+    // 合并当前effects到return上，然后找到其他还未解析的fiber节点
     while(true) {
       let current = workInProgress.alternate
       let returnFiber = workInProgress.return
@@ -32,7 +33,16 @@ class ScheduleWork {
 
       if ((workInProgress.effectTag & constance.effects.Incomplete) === constance.effects.NoEffect) {
         // 当前节点已经完成
-        let next = this.completeWork()
+        // 处理当前节点，做好commit前的准备工作
+        let next = this.completeWork(current, workInProgress)
+        if (next) {
+
+        }
+        if (returnFiber && (returnFiber.effectTag & constance.effects.Incomplete) === constance.effects.NoEffect) {
+          if (returnFiber.firstEffect === null) {
+            returnFiber.firstEffect = workInProgress.firstEffect
+          }
+        }
       }
     }
   }
@@ -42,9 +52,25 @@ class ScheduleWork {
     switch(workInProgress.tag) {
       case constance.tags.HostText: 
         {
-          
+          let newText = newProps
+          if (current && workInProgress.stateNode !== null) {
+
+          }else {
+            // TODO: 后面要采用栈的形式来获取ContainerInstance
+            const _rootContainerInstance = document.getElementById('root')
+            workInProgress.stateNode = this.createTextNode(newText, workInProgress)
+          }
+          return null
         }
     }
+  }
+
+  createTextInstance (text, internalInstanceHandle) {
+    const randomKey = Math.random().toString(36).slice(2);
+    const internalInstanceKey = '__reactInternalInstance$' + randomKey;
+    const textNode = document.createTextNode(text)
+    textNode[internalInstanceKey] = internalInstanceHandle
+    return textNode
   }
 
   beginWork (current, workInProgress, renderExpirationTime) {
