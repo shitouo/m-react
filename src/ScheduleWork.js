@@ -42,7 +42,17 @@ class ScheduleWork {
           if (returnFiber.firstEffect === null) {
             returnFiber.firstEffect = workInProgress.firstEffect
           }
+          const effectTag = workInProgress.effectTag
+          if (effectTag > constance.effects.PerformedWork) {
+            if (returnFiber.lastEffect) {
+
+            }else {
+              returnFiber.firstEffect = workInProgress
+            }
+            returnFiber.lastEffect = workInProgress
+          }
         }
+
       }
     }
   }
