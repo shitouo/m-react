@@ -1,26 +1,18 @@
 /**
  * 自造的reactDom
  */
+import ReactRoot from './ReactRoot'
+
 class MReactDom {
   render (elements, container) {
     // 1、把reactElement，转成Fiber tree
     // 2、解析
     // 3、commit
-    // 先实现将jsx转为reactElement，然后插入到页面中
-    if (typeof elements === 'string') {
-      console.log(elements)
-      container.innerHTML = elements
-      return
-    }
-    if (typeof elements === 'object') {
-      const dom = document.createElement(elements.type)
-      if (elements.props && elements.props.children) {
-        const children = elements.props.children
-        children.forEach(item => {
-          this.render(item, dom)
-        });
-      }
-      container.appendChild(dom)
-    }
+    
+    // 先生成reactRoot，然后调用ReactRoot的render
+    let reactRoot = new ReactRoot(container)
+    reactRoot.render(elements)// 在调用到这的时候，elements已经通过babel和MReact.createElement生成reactElement了。
   }
 }
+
+export default new MReactDom()

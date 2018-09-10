@@ -5,6 +5,7 @@ import Constance from './Constance'
 import FiberNode from './FiberNode';
 
 const constance = new Constance()
+let isRootReadyForCommit = false
 
 class ScheduleWork {
   workLoop (nextUnitOfWork) {
@@ -14,7 +15,7 @@ class ScheduleWork {
   }
 
   performUnitOfWork (workInProgress) {
-    const next = this.beginWork()
+    const next = this.beginWork(workInProgress.alternate, workInProgress, 1)
 
     if (next === null) {
       // 当前分支解析到叶子结点了，返回efftces给return，并寻找其他分支还未解析的节点
@@ -38,22 +39,44 @@ class ScheduleWork {
         if (next) {
 
         }
+        // 要保证return的所有子节点都complete，才会合并effects提交
         if (returnFiber && (returnFiber.effectTag & constance.effects.Incomplete) === constance.effects.NoEffect) {
+          // 合并children的effects到return
           if (returnFiber.firstEffect === null) {
             returnFiber.firstEffect = workInProgress.firstEffect
           }
-          const effectTag = workInProgress.effectTag
-          if (effectTag > constance.effects.PerformedWork) {
+          if (workInProgress.lastEffect) {
             if (returnFiber.lastEffect) {
-
-            }else {
-              returnFiber.firstEffect = workInProgress
+              returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
             }
-            returnFiber.lastEffect = workInProgress
+            returnFiber.lastEffect = workInProgress.lastEffect
           }
+          
+        }
+        // 合并自身的effects到return，并且是在children的后面
+        const effectTag = workInProgress.effectTag
+        if (effectTag > constance.effects.PerformedWork) {
+          if (returnFiber.lastEffect) {
+            returnFiber.lastEffect.nextEffect = workInProgress // 这里的结构类似于链表结构
+          }else {
+            returnFiber.firstEffect = workInProgress
+          }
+          returnFiber.lastEffect = workInProgress
         }
 
+        if (siblingFiber) {
+          return siblingFiber
+        }else if(returnFiber) {
+          workInProgress = returnFiber
+          continue
+        }else {
+          // reached the root
+          isRootReadyForCommit = true
+          return null
+        }
       }
+
+      return null
     }
   }
 
@@ -68,7 +91,7 @@ class ScheduleWork {
           }else {
             // TODO: 后面要采用栈的形式来获取ContainerInstance
             const _rootContainerInstance = document.getElementById('root')
-            workInProgress.stateNode = this.createTextNode(newText, workInProgress)
+            workInProgress.stateNode = this.createTextInstance(newText, workInProgress)
           }
           return null
         }
@@ -88,7 +111,7 @@ class ScheduleWork {
       case constance.tags.HostRoot:
         return this.updateHostRoot(current, workInProgress, renderExpirationTime)
       case constance.tags.HostText:
-        return this.updateHostText()  
+        return this.updateHostText(current, workInProgress)  
     }
   }
 
@@ -115,12 +138,12 @@ class ScheduleWork {
   processUpdateQuene (current, workInProgress, quene, instance, props, renderExpirationTime) {
     const currentQuene = quene
     quene = workInProgress.updateQuene = {
-      baseState: currentQueue.baseState,
-      expirationTime: currentQueue.expirationTime,
-      first: currentQueue.first,
-      last: currentQueue.last,
-      isInitialized: currentQueue.isInitialized,
-      capturedValues: currentQueue.capturedValues,
+      baseState: currentQuene.baseState,
+      expirationTime: currentQuene.expirationTime,
+      first: currentQuene.first,
+      last: currentQuene.last,
+      isInitialized: currentQuene.isInitialized,
+      capturedValues: currentQuene.capturedValues,
       // These fields are no longer valid because they were already committed.
       // Reset them.
       callbackList: null,
@@ -183,7 +206,7 @@ class ScheduleWork {
     if (current === null) {
 
     }else {
-      workInProgress.child = this.reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime)
+      workInProgress.child = this.reconcileChildFibers(workInProgress, current.child, nextChildren, 1)
     }
   }
 
@@ -193,13 +216,14 @@ class ScheduleWork {
     }
 
     if (typeof newChild === 'string' || typeof newChild === 'number') {
-      this.placeSingleChild(this.reconcileSingleTextNode(returnFiber, currentFirstChild, newChild, expirationTime))
+      let newFiber = this.reconcileSingleTextNode(returnFiber, currentFirstChild, newChild, expirationTime)
+      this.placeSingleChild(newFiber)
+      return newFiber
     }
   }
 
   placeSingleChild (newFiber) {
     newFiber.effectTag = constance.effects.Placement
-    return newFiber
   }
 
   reconcileSingleTextNode (returnFiber, currentFirstChild, textContent, expirationTime) {
@@ -208,7 +232,7 @@ class ScheduleWork {
     }
     let created = this.createFiberFromText(textContent, null, expirationTime)
     created.return = returnFiber
-    return created  
+    return created
   }
 
   createFiberFromText (content, mode, expirationTime) {

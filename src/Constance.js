@@ -7,7 +7,9 @@ class Constance {
       NoEffect: 0,
       Placement: 2,
       Incomplete: 512,
-      PerformedWork: 1
+      PerformedWork: 1,
+      Update: 4,
+      Deletion: 8
     }
     this.tags = {
       HostRoot: 3,

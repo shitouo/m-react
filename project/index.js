@@ -1,6 +1,7 @@
-import MReact from '../src/MReact';
+import mReactDom from '../src/MReactDom';
+import MReact from '../src/MReact'
 
-MReact.render(
-  <div>1111<h1>hello world!</h1></div>,
+mReactDom.render(
+  111111,
   document.getElementById('root')
 )
