@@ -14,7 +14,8 @@ let isCommiting = false
 class ReactRoot {
   constructor (containerInfo) {
      this._internalRoot = this.createFiberRoot(containerInfo)
-     this.nextUnitOfWork = null
+    //  this.nextUnitOfWork = null
+    this.rootWorkInProgress = null
   }
 
   createFiberRoot (containerInfo) {
@@ -57,11 +58,11 @@ class ReactRoot {
     current.updateQuene = quene
   }
 
-  render (children) {
+  renderRoot (children) {
     this.scheduleRootUpdate(this._internalRoot.current, children, 1)
-    this.nextUnitOfWork = this.createWorkInProgress(this._internalRoot.current, null, 1)
-    scheduleWork.workLoop(this.nextUnitOfWork)
-    this.commitRoot(this._internalRoot.current.alternate)
+    this.rootWorkInProgress = this.createWorkInProgress(this._internalRoot.current, null, 1)
+    scheduleWork.workLoop(this.rootWorkInProgress)
+    scheduleWork.commitRoot(this._internalRoot.current.alternate)
   }
 
   createWorkInProgress (current, pendingProps, expirationTime) {
@@ -91,47 +92,7 @@ class ReactRoot {
     return workInProgress
     
   }
-
-  commitRoot (finishedWork) {
-    isWorking = true
-    isCommiting = true
-
-    let root = finishedWork.stateNode
-    let committedExpirationTime = root.pendingCommitExpirationTime
-    root.pendingCommitExpirationTime = constance.works.NoWork
-    
-    let firstEffect = null
-    if (finishedWork.effectTag > constance.effects.PerformedWork) {
-      // 当前root也有修改
-      if (finishedWork.lastEffect) {
-        finishedWork.lastEffect.nextEffect = finishedWork
-        firstEffect = finishedWork.firstEffect
-      } else {
-        firstEffect = finishedWork
-      }
-    }else {
-      // 当前root没有修改
-      firstEffect = finishedWork.firstEffect
-    }
-
-    let nextEffect = firstEffect
-    while (nextEffect) {
-      let effectTag = nextEffect.effectTag
-      let primaryEffectTag = effectTag & (constance.effects.Placement | constance.effects.Update | constance.effects.Deletion);
-      switch(primaryEffectTag) {
-        case constance.effects.Placement: {
-          this.commitPlacement(nextEffect)
-          nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
-          break;
-        }
-      }
-      nextEffect = nextEffect.nextEffect;
-    }
-  }
-
-  commitPlacement(finishedWork) {
-    this._internalRoot.containerInfo.appendChild(finishedWork.stateNode)
-  }
+  
 }
 
 export default ReactRoot
