@@ -2,9 +2,11 @@
  * 调度工作
  */
 import Constance from './Constance'
-import FiberNode from './FiberNode';
+import FiberNode from './FiberNode'
+import updateWorks from './UpdateWorks'
 
 const constance = new Constance()
+const hostRootWork = new HostRootWork()
 let isRootReadyForCommit = false
 
 class ScheduleWork {
@@ -109,30 +111,10 @@ class ScheduleWork {
   beginWork (current, workInProgress, renderExpirationTime) {
     switch(workInProgress.tag) {
       case constance.tags.HostRoot:
-        return this.updateHostRoot(current, workInProgress, renderExpirationTime)
+        return updateWorks.updateHostRoot(current, workInProgress, renderExpirationTime)
       case constance.tags.HostText:
-        return this.updateHostText(current, workInProgress)  
+        return updateWorks.updateHostText(current, workInProgress)  
     }
-  }
-
-  updateHostText (current, workInProgress) {
-    workInProgress.memorizedProps = workInProgress.pendingProps
-    return null
-  }
-
-  updateHostRoot (current, workInProgress, renderExpirationTime) {
-    let updateQuene = workInProgress.updateQuene
-    if (updateQuene) {
-      const prevState = workInProgress.memorizedState
-      const state = this.processUpdateQuene(current, workInProgress, updateQuene, null, null, renderExpirationTime)
-      workInProgress.memorizedState = state
-      updateQuene = workInProgress.updateQuene
-
-      let element = state.element
-
-      this.reconcileChildren(current, workInProgress, element)
-    }
-    return workInProgress.child
   }
 
   processUpdateQuene (current, workInProgress, quene, instance, props, renderExpirationTime) {
