@@ -1,13 +1,14 @@
 /**
- * 调度工作
+ * 调度工作，控制work的流程
  */
 import Constance from './Constance'
-import FiberNode from './FiberNode'
-import updateWorks from './UpdateWorks'
+import UpdateWorks from './UpdateWorks'
 
 const constance = new Constance()
-const hostRootWork = new HostRootWork()
+const updateWorks = new UpdateWorks()
 let isRootReadyForCommit = false
+let isWorking = false
+let isCommiting = false
 
 class ScheduleWork {
   workLoop (nextUnitOfWork) {
@@ -93,19 +94,11 @@ class ScheduleWork {
           }else {
             // TODO: 后面要采用栈的形式来获取ContainerInstance
             const _rootContainerInstance = document.getElementById('root')
-            workInProgress.stateNode = this.createTextInstance(newText, workInProgress)
+            workInProgress.stateNode = updateWorks.createTextInstance(newText, workInProgress)
           }
           return null
         }
     }
-  }
-
-  createTextInstance (text, internalInstanceHandle) {
-    const randomKey = Math.random().toString(36).slice(2);
-    const internalInstanceKey = '__reactInternalInstance$' + randomKey;
-    const textNode = document.createTextNode(text)
-    textNode[internalInstanceKey] = internalInstanceHandle
-    return textNode
   }
 
   beginWork (current, workInProgress, renderExpirationTime) {
@@ -117,113 +110,7 @@ class ScheduleWork {
     }
   }
 
-  processUpdateQuene (current, workInProgress, quene, instance, props, renderExpirationTime) {
-    const currentQuene = quene
-    quene = workInProgress.updateQuene = {
-      baseState: currentQuene.baseState,
-      expirationTime: currentQuene.expirationTime,
-      first: currentQuene.first,
-      last: currentQuene.last,
-      isInitialized: currentQuene.isInitialized,
-      capturedValues: currentQuene.capturedValues,
-      // These fields are no longer valid because they were already committed.
-      // Reset them.
-      callbackList: null,
-      hasForceUpdate: false
-    }
-
-    quene.expirationTime = constance.works.NoWork
-
-    let state = null
-    if (quene.isInitialized) {
-      state = quene.baseState
-    }else {
-      state = quene.baseState = workInProgress.memorizedState
-      quene.isInitialized = true
-    }
-    let dontMutatePrevState = true
-    let update = quene.first
-    let didSkip = false
-
-    while(update) {
-      let updateExpirationTime = update.expirationTime
-      if (updateExpirationTime > renderExpirationTime) {
-
-      }
-
-      if (!didSkip) {
-        quene.first = quene.next
-        if (quene.first === null) {
-          quene.last = null
-        }
-      }
-
-      // process the update
-      let _partialState = null
-      if (update.isReplace) {
-
-      }else {
-        _partialState = update.partialState
-        if (_partialState) {
-          if (dontMutatePrevState) {
-            state = Object.assign({}, state, _partialState)
-          }
-        }
-        dontMutatePrevState = false
-      }
-      if (update.isForced) {
-        queue.hasForceUpdate = true
-      }
-      update = update.next
-    }
-
-    if (!didSkip) {
-      didSkip = true,
-      quene.baseState = state
-    }
-    return state
-  }
-
-  reconcileChildren (current, workInProgress, nextChildren) {
-    if (current === null) {
-
-    }else {
-      workInProgress.child = this.reconcileChildFibers(workInProgress, current.child, nextChildren, 1)
-    }
-  }
-
-  reconcileChildFibers (returnFiber, currentFirstChild, newChild, expirationTime) {
-    if (newChild && typeof newChild === 'object') {
-
-    }
-
-    if (typeof newChild === 'string' || typeof newChild === 'number') {
-      let newFiber = this.reconcileSingleTextNode(returnFiber, currentFirstChild, newChild, expirationTime)
-      this.placeSingleChild(newFiber)
-      return newFiber
-    }
-  }
-
-  placeSingleChild (newFiber) {
-    newFiber.effectTag = constance.effects.Placement
-  }
-
-  reconcileSingleTextNode (returnFiber, currentFirstChild, textContent, expirationTime) {
-    if (currentFirstChild && currentFirstChild.tag === constance.tags.HostText) {
-
-    }
-    let created = this.createFiberFromText(textContent, null, expirationTime)
-    created.return = returnFiber
-    return created
-  }
-
-  createFiberFromText (content, mode, expirationTime) {
-    const fiber = new FiberNode(constance.tags.HostText, content)
-    fiber.expirationTime = expirationTime
-    return fiber
-  }
-
-  commitRoot (finishedWork) {
+  commitRoot (finishedWork, container) {
     isWorking = true
     isCommiting = true
 
@@ -251,7 +138,7 @@ class ScheduleWork {
       let primaryEffectTag = effectTag & (constance.effects.Placement | constance.effects.Update | constance.effects.Deletion);
       switch(primaryEffectTag) {
         case constance.effects.Placement: {
-          this.commitPlacement(nextEffect)
+          this.commitPlacement(nextEffect, container)
           nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
           break;
         }
@@ -260,8 +147,8 @@ class ScheduleWork {
     }
   }
 
-  commitPlacement(finishedWork) {
-    this._internalRoot.containerInfo.appendChild(finishedWork.stateNode)
+  commitPlacement(finishedWork, container) {
+    container.appendChild(finishedWork.stateNode)
   }
 
 }

@@ -62,7 +62,7 @@ class ReactRoot {
     this.scheduleRootUpdate(this._internalRoot.current, children, 1)
     this.rootWorkInProgress = this.createWorkInProgress(this._internalRoot.current, null, 1)
     scheduleWork.workLoop(this.rootWorkInProgress)
-    scheduleWork.commitRoot(this._internalRoot.current.alternate)
+    scheduleWork.commitRoot(this._internalRoot.current.alternate, this._internalRoot.containerInfo)
   }
 
   createWorkInProgress (current, pendingProps, expirationTime) {
