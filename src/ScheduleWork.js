@@ -105,6 +105,8 @@ class ScheduleWork {
     switch(workInProgress.tag) {
       case constance.tags.HostRoot:
         return updateWorks.updateHostRoot(current, workInProgress, renderExpirationTime)
+      case constance.tags.ClassComponent:
+        return updateWorks.updateClassComponent(current, workInProgress, renderExpirationTime)  
       case constance.tags.HostText:
         return updateWorks.updateHostText(current, workInProgress)  
     }

@@ -1,7 +1,9 @@
 /**
  * MReact的主文件
  */
-const REACT_ELEMENT_TYPE = (typeof Symbol === 'function' && Symbol.for)? Symbol.for('react.element') : 0xeac7
+import Constance from './Constance'
+
+const constance = new Constance()
 
 let didWarnStateUpdateForUnmountedComponent = {}
 
@@ -13,7 +15,10 @@ const ReactNoopUpdateQuene = {
     const _constructor = publicInstance.constructor
     const componentName = _constructor && (_constructor.name || _constructor.displayName) || 'ReactClass'
     const warningKey = `&{componentName}.${callerName}`
-    if ()
+    if (didWarnStateUpdateForUnmountedComponent[warningKey]) {
+      return false
+    }
+    didWarnStateUpdateForUnmountedComponent[warningKey] = true
   },
   enqueneForceUpdate (publicInstance, callback) {
     this.warnNoop(publicInstance, 'forceUpdate')
@@ -28,10 +33,14 @@ class Component {
   constructor (props, context, updater) {
     this.props = props
     this.context = context
-    this.update = updater || 
+    this.update = updater || ReactNoopUpdateQuene
   }
-  setState () {}
-  forUpdate () {}
+  setState (partialState, callback) {
+    this.updater.enqueneSetState(this, partialState, callback)
+  }
+  forUpdate (callback) {
+    this.updater.enqueneForceUpdate(this, callback)
+  }
 }
 
 const MReact = {
@@ -48,7 +57,7 @@ const MReact = {
       props.children = children
     }
     return {
-      $$typeof: REACT_ELEMENT_TYPE,
+      $$typeof: constance.$$types.REACT_ELEMENT_TYPE,
       type,
       props
     }

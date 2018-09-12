@@ -1,8 +1,8 @@
 import mReactDom from '../src/MReactDom';
 import MReact from '../src/MReact'
-import App from './'
+import App from './App.js'
 
 mReactDom.render(
-  111111,
+  <App />,
   document.getElementById('root')
 )

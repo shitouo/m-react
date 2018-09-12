@@ -3,6 +3,7 @@
  */
 import FiberNode from './FiberNode'
 import Constance from './Constance'
+import ClassComponent from './classComponent'
 
 const constance = new Constance()
 
@@ -24,6 +25,36 @@ class UpdateWorks {
 
       this.reconcileChildren(current, workInProgress, element)
     }
+    return workInProgress.child
+  }
+
+  updateClassComponent (current, workInProgress, renderExpirationTime) {
+    let shouldUpdate // 标识是否需要更新
+
+    if (!current) {
+      // 还未装载过
+      if (!workInProgress.stateNode) {
+        ClassComponent.constructClassInstance(workInProgress, workInProgress.pendingProps)
+        ClassComponent.mountClassInstance(workInProgress)
+
+        shouldUpdate = true
+      }else {
+        // TODO
+      }
+    }else {
+      // TODO 已经装载过
+    }
+
+    return this.finishClassComponent(current, workInProgress, shouldUpdate, null, null, renderExpirationTime)
+  }
+
+  finishClassComponent (current, workInProgress, shouldUpdate, hasContext, didCaptureError, renderExpirationTime) {
+    // update结束
+    const instance = workInProgress.stateNode
+    const nextChildren = instance.render()
+    let currentChild = current ? current.child : null
+    this.reconcileChildFibers(workInProgress, currentChild, nextChildren, renderExpirationTime)
+
     return workInProgress.child
   }
 
@@ -64,6 +95,7 @@ class UpdateWorks {
     let didSkip = false
 
     while(update) {
+      // 遍历所有的update，assign所有的_partialState
       let updateExpirationTime = update.expirationTime
       if (updateExpirationTime > renderExpirationTime) {
 
@@ -71,7 +103,7 @@ class UpdateWorks {
 
       if (!didSkip) {
         quene.first = quene.next
-        if (quene.first === null) {
+        if (!quene.first) {
           quene.last = null
         }
       }
@@ -111,8 +143,18 @@ class UpdateWorks {
   }
 
   reconcileChildFibers (returnFiber, currentFirstChild, newChild, expirationTime) {
+    // currentFirstChild是本来节点上就有的child，newChild是要新添加上去的child
     if (newChild && typeof newChild === 'object') {
-
+      switch(newChild.$$typeof) {
+        case constance.$$types.REACT_ELEMENT_TYPE: {
+          let newFiber = this.reconcileSingleElement(returnFiber, currentFirstChild, newChild, expirationTime)
+          this.placeSingleChild(newFiber)
+          return newFiber
+        }
+        case constance.$$types.REACT_PORTAL_TYPE: {
+          // TODO
+        }
+      }
     }
 
     if (typeof newChild === 'string' || typeof newChild === 'number') {
@@ -122,6 +164,20 @@ class UpdateWorks {
     }
   }
 
+  reconcileSingleElement (returnFiber, currentFirstChild, element, expirationTime) {
+    const key = element.key
+    const child = currentFirstChild
+
+    while (child) {
+      // TODO
+      break
+    }
+
+    let _create4 = this.createFiberFromElement(element, expirationTime)
+    _create4.return = returnFiber
+    return _create4
+  }
+
   reconcileSingleTextNode (returnFiber, currentFirstChild, textContent, expirationTime) {
     if (currentFirstChild && currentFirstChild.tag === constance.tags.HostText) {
 
@@ -129,6 +185,21 @@ class UpdateWorks {
     let created = this.createFiberFromText(textContent, null, expirationTime)
     created.return = returnFiber
     return created
+  }
+
+  createFiberFromElement (element, expirationTime) {
+    let fiberTag
+    if (typeof element.type === 'function') {
+      fiberTag = constance.tags.ClassComponent
+    }else if (typeof element.type === 'string') {
+      // TODO
+      fiberTag = constance.tags.HostComponent
+    }
+
+    let fiber = new FiberNode(fiberTag, element.props)
+    fiber.type = element.type
+    fiber.expirationTime = expirationTime
+    return fiber
   }
 
   createFiberFromText (content, mode, expirationTime) {
