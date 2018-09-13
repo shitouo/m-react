@@ -6,7 +6,26 @@ import Constance from './Constance'
 const constance = new Constance()
 
 const ClassComponent = {
-  updater: {},
+  updater: {
+    enqueueSetState: function (instance, partialState, callback) {
+      const fiber = instance._reactInternalFiber
+      callback = callback === undefined ? null : callback;
+      // var expirationTime = computeExpirationForFiber(fiber);
+      // TODO:计算有效期
+      const expirationTime = 1
+      var update = {
+        expirationTime: expirationTime,
+        partialState: partialState,
+        callback: callback,
+        isReplace: false,
+        isForced: false,
+        capturedValue: null,
+        next: null
+      };
+      insertUpdateIntoFiber(fiber, update);
+      scheduleWork(fiber, expirationTime);
+    }
+  },
 
   callGetDerivedStateFromProps (workInProgress, nextProps, prevState) {
     const type = workInProgress.type
