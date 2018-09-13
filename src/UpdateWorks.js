@@ -53,8 +53,25 @@ class UpdateWorks {
     const instance = workInProgress.stateNode
     const nextChildren = instance.render()
     let currentChild = current ? current.child : null
-    this.reconcileChildFibers(workInProgress, currentChild, nextChildren, renderExpirationTime)
+    workInProgress.child = this.reconcileChildFibers(workInProgress, currentChild, nextChildren, renderExpirationTime)
 
+    return workInProgress.child
+  }
+
+  updateHostComponent (current, workInProgress, renderExpirationTime) {
+    const type = workInProgress.type
+    const memorizedProps = workInProgress.memorizedProps
+    const nextProps = workInProgress.pendingProps
+    const prevPops = current ? current.memorizedProps : null
+    let nextChildren
+
+    if (memorizedProps !== nextProps) {
+      nextChildren = nextProps.children
+      if (typeof nextChildren === 'string' || typeof nextChildren === 'number') {
+        nextChildren = null
+      }
+    }
+    this.reconcileChildren(current, workInProgress, nextChildren)
     return workInProgress.child
   }
 
@@ -64,6 +81,43 @@ class UpdateWorks {
     const textNode = document.createTextNode(text)
     textNode[internalInstanceKey] = internalInstanceHandle
     return textNode
+  }
+
+  createInstance (type,internalInstanceHandle) {
+    const randomKey = Math.random().toString(36).slice(2);
+    const internalInstanceKey = '__reactInternalInstance$' + randomKey;
+    const textNode = document.createElement(type)
+    textNode[internalInstanceKey] = internalInstanceHandle
+    return textNode
+  }
+
+  appendAllChildren (parent, workInProgress) {
+
+  }
+
+  finalizeInitialChildren (domElement, type, props) {
+    let newProps
+    switch (type) {
+      case 'img':
+      case 'image':
+      case 'link': {
+        break
+      }
+      default: {
+        newProps = props
+        // 根据props设置dom属性
+        for (let propKey in newProps) {
+          if (!newProps.hasOwnProperty(propKey)) {
+            continue
+          }
+          switch(propKey) {
+            case 'children': {
+              domElement.textContent = newProps.children
+            }
+          }
+        }
+      }
+    }
   }
 
   processUpdateQuene (current, workInProgress, quene, instance, props, renderExpirationTime) {
@@ -135,8 +189,8 @@ class UpdateWorks {
   }
 
   reconcileChildren (current, workInProgress, nextChildren) {
-    if (current === null) {
-
+    if (!current) {
+      workInProgress.child = this.reconcileChildFibers(workInProgress, null, nextChildren, 1)
     }else {
       workInProgress.child = this.reconcileChildFibers(workInProgress, current.child, nextChildren, 1)
     }
@@ -162,6 +216,8 @@ class UpdateWorks {
       this.placeSingleChild(newFiber)
       return newFiber
     }
+
+    return null
   }
 
   reconcileSingleElement (returnFiber, currentFirstChild, element, expirationTime) {

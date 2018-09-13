@@ -55,6 +55,9 @@ const MReact = {
     }
     if (children) {
       props.children = children
+      if (children.length === 1) {
+        props.children = children[0]
+      }
     }
     return {
       $$typeof: constance.$$types.REACT_ELEMENT_TYPE,

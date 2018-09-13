@@ -85,19 +85,31 @@ class ScheduleWork {
 
   completeWork (current, workInProgress, renderExpirationTime) {
     const newProps = workInProgress.pendingProps
+    const type = workInProgress.type
     switch(workInProgress.tag) {
-      case constance.tags.HostText: 
-        {
+      case constance.tags.HostText: {
           let newText = newProps
           if (current && workInProgress.stateNode !== null) {
 
           }else {
             // TODO: 后面要采用栈的形式来获取ContainerInstance
-            const _rootContainerInstance = document.getElementById('root')
             workInProgress.stateNode = updateWorks.createTextInstance(newText, workInProgress)
           }
           return null
         }
+      case constance.tags.HostComponent: {
+        if (current && workInProgress.stateNode) {
+          // TODO 之前已经创建了
+        }else {
+          if (!newProps) {
+            return null
+          }
+          workInProgress.stateNode = updateWorks.createInstance(type, workInProgress)
+          updateWorks.appendAllChildren()
+          updateWorks.finalizeInitialChildren(workInProgress.stateNode, type, newProps)
+        }
+        return null
+      }  
     }
   }
 
@@ -108,7 +120,9 @@ class ScheduleWork {
       case constance.tags.ClassComponent:
         return updateWorks.updateClassComponent(current, workInProgress, renderExpirationTime)  
       case constance.tags.HostText:
-        return updateWorks.updateHostText(current, workInProgress)  
+        return updateWorks.updateHostText(current, workInProgress)
+      case constance.tags.HostComponent:
+        return updateWorks.updateHostComponent(current, workInProgress, renderExpirationTime)
     }
   }
 
