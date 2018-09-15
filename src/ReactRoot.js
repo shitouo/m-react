@@ -6,12 +6,11 @@ import Constance from './Constance'
 import ScheduleWork from './ScheduleWork'
 
 const constance = new Constance()
-const scheduleWork = new ScheduleWork()
 
 let isWorking = false
 let isCommiting = false
 
-class ReactRoot {
+class ReactRoot extends ScheduleWork {
   constructor (containerInfo) {
      this._internalRoot = this.createFiberRoot(containerInfo)
     //  this.nextUnitOfWork = null
@@ -61,8 +60,8 @@ class ReactRoot {
   renderRoot (children) {
     this.scheduleRootUpdate(this._internalRoot.current, children, 1)
     this.rootWorkInProgress = this.createWorkInProgress(this._internalRoot.current, null, 1)
-    scheduleWork.workLoop(this.rootWorkInProgress)
-    scheduleWork.commitRoot(this._internalRoot.current.alternate, this._internalRoot.containerInfo)
+    this.workLoop(this.rootWorkInProgress)
+    this.commitRoot(this._internalRoot.current.alternate, this._internalRoot.containerInfo)
   }
 
   createWorkInProgress (current, pendingProps, expirationTime) {

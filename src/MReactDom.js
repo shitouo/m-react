@@ -3,6 +3,14 @@
  */
 import ReactRoot from './ReactRoot'
 
+// 定义全局变量
+window.lastScheduledRoot = null
+window.firstScheduledRoot = null
+window.nextFlushedRoot = null
+window.nestedUpdateCount = 0
+window.nextFlushedExpirationTime = 0
+window.isRendering = false
+
 class MReactDom {
   render (elements, container) {
     // 1、把reactElement，转成Fiber tree

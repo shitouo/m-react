@@ -5,12 +5,159 @@ import Constance from './Constance'
 import UpdateWorks from './UpdateWorks'
 
 const constance = new Constance()
-const updateWorks = new UpdateWorks()
 let isRootReadyForCommit = false
 let isWorking = false
 let isCommiting = false
 
-class ScheduleWork {
+class ScheduleWork extends UpdateWorks {
+  renderRoot(children) {
+
+  }
+
+  requestWork (root, expirationTime) {
+    // requestWork is called by the scheduler whenever a root receives an update
+    // it's up to the renderer to call renderRoot at some point in the future
+    this.addRootToSchedule(root, expirationTime)
+
+    if (window.isRendering) {
+      // Prevent reentrancy(重新进去). Remaining work will be scheduled at the end of
+      // the currently rendering batch.
+      return;
+    }
+
+    if (window.isBatchingUpdates) {
+      // Flush work at the end of the batch.
+      return
+    }
+
+    if (expirationTime === constance.mode.sync) {
+      this.performeWork(expirationTime, false, null)
+    }
+
+  }
+
+  performeWork (minExpirationTime, isAsync, dl) {
+    let deadline = dl
+
+    // keep working on roots until there's no more work, or until we reach the deadline
+    this.findHighestPriorityRoot()
+
+    if (isAsync) {
+      // TODO
+    }else {
+      while (window.nextFlushedRoot && window.nextFlushedExpirationTime !== constance.works.NoWork && (minExpirationTime === constance.works.NoWork || minExpirationTime >= window.nextFlushedExpirationTime)) {
+        this.performWorkOnRoot()
+        this.findHighestPriorityRoot()
+      }
+    }
+  }
+
+  performWorkOnRoot (root, expirationTime, isAsync) {
+    window.isRendering = true
+
+    // check if this is async work or sync/expired work
+    if (!isAsync) {
+      // flush sync work
+      let finishedWork = root.finishedWork
+      if (finishedWork) {
+        // this root is already complete. we can commit it
+
+      }else {
+        root.finishedWork = null
+        finishedWork = this.renderRoot(root, expirationTime,false)
+      }
+    }else {
+      // flush async work
+    }
+
+    window.isRendering = false
+  }
+
+  findHighestPriorityRoot () {
+    let highestPriorityWork = constance.works.NoWork
+    let highestPriorityRoot = null
+    if (window.lastScheduledRoot) {
+      let previousScheduledRoot = window.lastScheduledRoot
+      let root = window.firstScheduledRoot
+      while (root) {
+        let remainingExpirationTime = root.remainingExpirationTime
+        if (remainingExpirationTime === constance.works.NoWork) {
+          // this root no longer has work. Remove it from the scheduler.
+          if (root === root.nextScheduledRoot) {
+            // this is the only root in the list
+            root.nextScheduleRoot = null
+            window.firstScheduledRoot = window.lastScheduledRoot = null
+            break
+          }else if (root === window.firstScheduledRoot) {
+            // this is the first root in the list 
+            let next = root.nextScheduleRoot
+            window.firstScheduledRoot = next
+            window.lastScheduledRoot.nextScheduleRoot = next // 这个链表要永远成环
+            root.nextScheduleRoot = null // ?
+          }else if (root === window.lastScheduledRoot) {
+            // this is the last root in the list
+            window.lastScheduledRoot = previousScheduledRoot
+            window.lastScheduledRoot.nextScheduleRoot = window.firstScheduledRoot
+            root.nextScheduleRoot = null
+            break
+          }else {
+            previousScheduledRoot.nextScheduleRoot = root.nextScheduleRoot
+            root.nextScheduleRoot = null
+          }
+          root = previousScheduledRoot.nextScheduleRoot
+        }else {
+          // this root has more work
+          if (highestPriorityWork === constance.works.NoWork || remainingExpirationTime < highestPriorityWork) {
+            // update the priority, if it's higher
+            highestPriorityWork = remainingExpirationTime
+            highestPriorityRoot = root
+          }
+          if (root === window.lastScheduledRoot) {
+            break
+          }
+          previousScheduledRoot = root
+          root = root.nextScheduleRoot
+        }
+      }
+    }
+
+    // if the next root is the same as the previous root, this is a nested update. To prevent an infinite loop, increment the nested udpate count
+    let previousFlushedRoot = window.nextFlushedRoot
+    if (previousFlushedRoot && previousFlushedRoot === highestPriorityRoot && highestPriorityWork === constance.mode.sync) {
+      window.nestedUpdateCount++
+    }else {
+      // reset whenever we switch roots
+      window.nestedUpdateCount++
+    }
+
+    window.nextFlushedRoot = highestPriorityRoot
+    window.nextFlushedExpirationTime = highestPriorityWork
+  }
+
+  addRootToSchedule (root, expirationTime) {
+    // add the root to the schedule
+
+    // check if  this root is already part of the schedule
+    if (root.nextScheduleRoot === null) {
+      // this root is not already scheduled. add it
+      root.remainingExpirationTime = expirationTime
+      if (window.lastScheduledRoot === null) {
+        window.lastScheduledRoot = window.firstScheduledRoot = root
+        root.nextScheduleRoot = root
+      }else {
+        window.lastScheduledRoot.nextScheduleRoot = root
+        window.lastScheduledRoot = root
+        window.lastScheduledRoot.nextScheduleRoot = window.firstScheduledRoot // 为什么非要让链表成环呢？
+      }
+    }else {
+      // this root is already scheduled, but its priority may have increased
+      let remainingExpirationTime = root.remainingExpirationTime
+      if (remainingExpirationTime === constance.works.NoWork || remainingExpirationTime < expirationTime) {
+        root.remainingExpirationTime = expirationTime
+      }
+    }
+  }
+
   workLoop (nextUnitOfWork) {
     while (nextUnitOfWork !== null) {
       nextUnitOfWork = this.performUnitOfWork(nextUnitOfWork);
@@ -93,7 +240,7 @@ class ScheduleWork {
 
           }else {
             // TODO: 后面要采用栈的形式来获取ContainerInstance
-            workInProgress.stateNode = updateWorks.createTextInstance(newText, workInProgress)
+            workInProgress.stateNode = this.createTextInstance(newText, workInProgress)
           }
           return null
         }
@@ -104,9 +251,9 @@ class ScheduleWork {
           if (!newProps) {
             return null
           }
-          workInProgress.stateNode = updateWorks.createInstance(type, workInProgress)
-          updateWorks.appendAllChildren()
-          updateWorks.finalizeInitialChildren(workInProgress.stateNode, type, newProps)
+          workInProgress.stateNode = this.createInstance(type, workInProgress)
+          this.appendAllChildren()
+          this.finalizeInitialChildren(workInProgress.stateNode, type, newProps)
         }
         return null
       }  
@@ -116,13 +263,13 @@ class ScheduleWork {
   beginWork (current, workInProgress, renderExpirationTime) {
     switch(workInProgress.tag) {
       case constance.tags.HostRoot:
-        return updateWorks.updateHostRoot(current, workInProgress, renderExpirationTime)
+        return this.updateHostRoot(current, workInProgress, renderExpirationTime)
       case constance.tags.ClassComponent:
-        return updateWorks.updateClassComponent(current, workInProgress, renderExpirationTime)  
+        return this.updateClassComponent(current, workInProgress, renderExpirationTime)  
       case constance.tags.HostText:
-        return updateWorks.updateHostText(current, workInProgress)
+        return this.updateHostText(current, workInProgress)
       case constance.tags.HostComponent:
-        return updateWorks.updateHostComponent(current, workInProgress, renderExpirationTime)
+        return this.updateHostComponent(current, workInProgress, renderExpirationTime)
     }
   }
 

@@ -25,6 +25,10 @@ class Constance {
       REACT_ELEMENT_TYPE: (typeof Symbol === 'function' && Symbol.for)? Symbol.for('react.element') : 0xeac7,
       REACT_PORTAL_TYPE: (typeof Symbol === 'function' && Symbol.for)? Symbol.for('react.portal') : 0xeaca,
     }
+
+    this.mode = {
+      sync: 1
+    }
   }
 }
 
