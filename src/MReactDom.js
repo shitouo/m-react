@@ -10,6 +10,10 @@ window.nextFlushedRoot = null
 window.nestedUpdateCount = 0
 window.nextFlushedExpirationTime = 0
 window.isRendering = false
+window.nextUnitOfWork = null
+window.isRootReadyForCommit = false
+window.interruptedBy = null
+window.enableGetDerivedStateFromCatch = false
 
 class MReactDom {
   render (elements, container) {
@@ -19,7 +23,7 @@ class MReactDom {
     
     // 先生成reactRoot，然后调用ReactRoot的render
     let reactRoot = new ReactRoot(container)
-    reactRoot.renderRoot(elements)// 在调用到这的时候，elements已经通过babel和MReact.createElement生成reactElement了。
+    reactRoot.render(elements)// 在调用到这的时候，elements已经通过babel和MReact.createElement生成reactElement了。
   }
 }
 

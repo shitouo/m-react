@@ -10,10 +10,33 @@ let isWorking = false
 let isCommiting = false
 
 class ScheduleWork extends UpdateWorks {
-  renderRoot(children) {
+  scheduleWork (fiber, expirationTime) {
+    // walk the parent path to the root and update each node's expiration time
+    let node = fiber
+    while (node) {
+      if (node.expirationTime === constance.works.NoWork || node.expirationTime > expirationTime) {
+        node.expirationTime = expirationTime
+      }
 
+      if (node.alternate) {
+        let alternate = node.alternate
+        if (alternate.expirationTime === constance.works.NoWork || alternate.expirationTime > expirationTime) {
+          alternate.expirationTime = expirationTime
+        }
+      }
+
+      if (!node.return) {
+        // walk to the top
+        if (node.tag === constance.tags.HostRoot) {
+          let root = node.stateNode
+          this.requestWork(root, expirationTime)
+        }
+      }
+
+      node = node.return
+    }
   }
-
+  
   requestWork (root, expirationTime) {
     // requestWork is called by the scheduler whenever a root receives an update
     // it's up to the renderer to call renderRoot at some point in the future
@@ -46,7 +69,7 @@ class ScheduleWork extends UpdateWorks {
       // TODO
     }else {
       while (window.nextFlushedRoot && window.nextFlushedExpirationTime !== constance.works.NoWork && (minExpirationTime === constance.works.NoWork || minExpirationTime >= window.nextFlushedExpirationTime)) {
-        this.performWorkOnRoot()
+        this.performWorkOnRoot(window.nextFlushedRoot, window.nextFlushedExpirationTime, false)
         this.findHighestPriorityRoot()
       }
     }
@@ -65,12 +88,26 @@ class ScheduleWork extends UpdateWorks {
       }else {
         root.finishedWork = null
         finishedWork = this.renderRoot(root, expirationTime,false)
+        if (finishedWork) {
+          this.completeRoot(root, finishedWork, expirationTime)
+        }
       }
     }else {
       // flush async work
     }
 
     window.isRendering = false
+  }
+
+  completeRoot (root, finishedWork, expirationTime) {
+    let firstBatch = root.firstBatch
+    if (firstBatch && firstBatch._expirationTime <= expirationTime) {
+      // TODO
+    }
+
+    // commit the root
+    root.finishedWork = null
+    root.remainingExpirationTime = this.commitRoot(finishedWork)
   }
 
   findHighestPriorityRoot () {
@@ -127,7 +164,7 @@ class ScheduleWork extends UpdateWorks {
       window.nestedUpdateCount++
     }else {
       // reset whenever we switch roots
-      window.nestedUpdateCount++
+      window.nestedUpdateCount = 0
     }
 
     window.nextFlushedRoot = highestPriorityRoot
@@ -158,9 +195,9 @@ class ScheduleWork extends UpdateWorks {
     }
   }
 
-  workLoop (nextUnitOfWork) {
-    while (nextUnitOfWork !== null) {
-      nextUnitOfWork = this.performUnitOfWork(nextUnitOfWork);
+  workLoop (isAsync) {
+    while (window.nextUnitOfWork !== null) {
+      window.nextUnitOfWork = this.performUnitOfWork(window.nextUnitOfWork);
     }
   }
 
@@ -221,7 +258,7 @@ class ScheduleWork extends UpdateWorks {
           continue
         }else {
           // reached the root
-          isRootReadyForCommit = true
+          window.isRootReadyForCommit = true
           return null
         }
       }
@@ -295,6 +332,7 @@ class ScheduleWork extends UpdateWorks {
       firstEffect = finishedWork.firstEffect
     }
 
+    // 在root消费掉所有的effect
     let nextEffect = firstEffect
     while (nextEffect) {
       let effectTag = nextEffect.effectTag
@@ -308,10 +346,62 @@ class ScheduleWork extends UpdateWorks {
       }
       nextEffect = nextEffect.nextEffect;
     }
+
+    // 这里要消费掉所有的生命周期
+    nextEffect = firstEffect
+    while (nextEffect) {
+      let effectTag = nextEffect.effectTag;
+
+      if (effectTag & (constance.effects.Update | constance.effects.Callback)) { 
+        // 如果effectTag里面包含Update或者Callback
+        let current = nextEffect.alternate;
+        this.commitLifeCycles(null, current, nextEffect, null, committedExpirationTime)
+      }
+
+      var next = nextEffect.nextEffect;
+      // Ensure that we clean these up so that we don't accidentally keep them.
+      // I'm not actually sure this matters because we can't reset firstEffect
+      // and lastEffect since they're on every node, not just the effectful
+      // ones. So we have to clean everything as we reuse nodes anyway.
+      nextEffect.nextEffect = null;
+      // Ensure that we reset the effectTag here so that we can rely on effect
+      // tags to reason about the current life-cycle.
+      nextEffect = next;
+    }
+
+    isCommiting = false
+    isWorking = false
+
+    let remainingTime = root.current.expirationTime
+    return remainingTime
   }
 
   commitPlacement(finishedWork, container) {
-    container.appendChild(finishedWork.stateNode)
+    document.getElementById('root').appendChild(finishedWork.stateNode)
+  }
+
+  commitLifeCycles (finishedRoot, current, finishedWork, currentTime, committedExpirationTime) {
+    switch (finishedWork.tag) {
+      case constance.tags.ClassComponent: {
+        let _instance2 = finishedWork.stateNode
+        if (finishedWork.effectTag & constance.effects.Update) {
+          if (current) {
+            // TODO
+          }else {
+            _instance2.props = finishedWork.memorizedProps
+            _instance2.state = finishedWork.memorizedState
+            _instance2.componentDidMount()
+          }
+        }
+
+        let updateQueue = finishedWork.updateQueue
+        if (updateQueue) {
+          // TODO
+        }
+
+        return
+      }
+    }
   }
 
 }

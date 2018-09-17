@@ -9,7 +9,8 @@ class Constance {
       Incomplete: 512,
       PerformedWork: 1,
       Update: 4,
-      Deletion: 8
+      Deletion: 8,
+      Callback: 32
     }
     this.tags = {
       HostRoot: 3,

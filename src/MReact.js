@@ -20,10 +20,10 @@ const ReactNoopUpdateQuene = {
     }
     didWarnStateUpdateForUnmountedComponent[warningKey] = true
   },
-  enqueneForceUpdate (publicInstance, callback) {
+  enqueueForceUpdate (publicInstance, callback) {
     this.warnNoop(publicInstance, 'forceUpdate')
   },
-  enqueneSetState (publicInstance, partialState, callback) {
+  enqueueSetState (publicInstance, partialState, callback) {
     this.warnNoop(publicInstance, 'setState')
   }
 }
@@ -33,10 +33,10 @@ class Component {
   constructor (props, context, updater) {
     this.props = props
     this.context = context
-    this.update = updater || ReactNoopUpdateQuene
+    this.updater = updater || ReactNoopUpdateQuene
   }
   setState (partialState, callback) {
-    this.updater.enqueneSetState(this, partialState, callback)
+    this.updater.enqueueSetState(this, partialState, callback)
   }
   forUpdate (callback) {
     this.updater.enqueneForceUpdate(this, callback)

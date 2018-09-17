@@ -4,17 +4,16 @@
 import FiberNode from './FiberNode'
 import Constance from './Constance'
 import ClassComponent from './classComponent'
+import Util from './Util'
 
 const constance = new Constance()
+const util = new Util()
 
 class UpdateWorks {
-  constructor () {
-    this.updater = this.updater.bind(this)
-  }
-
   get updater () {
+    const that = this
     return {
-      enqueueSetState: function (instance, partialState, callback) {
+      enqueueSetState: (function (instance, partialState, callback) {
         const fiber = instance._reactInternalFiber
         callback = callback === undefined ? null : callback;
         // var expirationTime = computeExpirationForFiber(fiber);
@@ -31,34 +30,7 @@ class UpdateWorks {
         };
         this.insertUpdateIntoFiber(fiber, update);
         this.scheduleWork(fiber, expirationTime);
-      }
-    }
-  }
-
-  scheduleWork (fiber, expirationTime) {
-    // walk the parent path to the root and update each node's expiration time
-    let node = fiber
-    while (node) {
-      if (node.expirationTime === constance.works.NoWork || node.expirationTime > expirationTime) {
-        node.expirationTime = expirationTime
-      }
-
-      if (node.alternate) {
-        let alternate = node.alternate
-        if (alternate.expirationTime === constance.works.NoWork || alternate.expirationTime > expirationTime) {
-          alternate.expirationTime = expirationTime
-        }
-      }
-
-      if (!node.return) {
-        // walk to the top
-        if (node.tag === constance.tags.HostRoot) {
-          let root = node.stateNode
-          this.requestWork(root, expirationTime)
-        }
-      }
-
-      node = node.return
+      }).bind(that)
     }
   }
 
@@ -69,7 +41,7 @@ class UpdateWorks {
     if (!alternate) {
       queue1 = fiber.updateQueue
       queue2 = null
-      if (queue1 === null) {
+      if (!queue1) {
         queue1 = fiber.updateQueue = this.createUpdateQueue(fiber.memorizedState)
       }
     }else {
@@ -138,15 +110,43 @@ class UpdateWorks {
     let updateQuene = workInProgress.updateQuene
     if (updateQuene) {
       const prevState = workInProgress.memorizedState
-      const state = this.processUpdateQuene(current, workInProgress, updateQuene, null, null, renderExpirationTime)
+      const state = util.processUpdateQueue(current, workInProgress, updateQuene, null, null, renderExpirationTime)
       workInProgress.memorizedState = state
       updateQuene = workInProgress.updateQuene
-
-      let element = state.element
+      let element
+      if (prevState === state) {
+        // if the state is the same as before, that's a bailout because we had no work that expires at this time
+        return this.bailoutOnAlreadyFinishedWork(current, workInProgress)
+      }else {
+        element = state.element
+      }
 
       this.reconcileChildren(current, workInProgress, element)
     }
     return workInProgress.child
+  }
+
+  bailoutOnAlreadyFinishedWork (current, workInProgress) {
+    this.cloneChildFibers(current, workInProgress)
+    return workInProgress.child
+  }
+
+  cloneChildFibers (current, workInProgress) {
+    if (workInProgress.child === null) {
+      return
+    }
+
+    let currentChild = workInProgress.child
+    let newChild = this.createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime)
+    workInProgress.child = newChild
+
+    newChild.return = workInProgress
+    while(currentChild.sibling) {
+      currentChild = currentChild.sibling
+      newChild = newChild.sibling = this.createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime)
+      newChild.return = workInProgress
+    }
+    newChild.sibling = null
   }
 
   updateClassComponent (current, workInProgress, renderExpirationTime) {
@@ -163,7 +163,8 @@ class UpdateWorks {
         // TODO
       }
     }else {
-      // TODO 已经装载过
+      // 已经装载过，现在是更新
+      shouldUpdate = ClassComponent.updateClassInstance()
     }
 
     return this.finishClassComponent(current, workInProgress, shouldUpdate, null, null, renderExpirationTime)
@@ -239,74 +240,6 @@ class UpdateWorks {
         }
       }
     }
-  }
-
-  processUpdateQuene (current, workInProgress, quene, instance, props, renderExpirationTime) {
-    const currentQuene = quene
-    quene = workInProgress.updateQuene = {
-      baseState: currentQuene.baseState,
-      expirationTime: currentQuene.expirationTime,
-      first: currentQuene.first,
-      last: currentQuene.last,
-      isInitialized: currentQuene.isInitialized,
-      capturedValues: currentQuene.capturedValues,
-      // These fields are no longer valid because they were already committed.
-      // Reset them.
-      callbackList: null,
-      hasForceUpdate: false
-    }
-
-    quene.expirationTime = constance.works.NoWork
-
-    let state = null
-    if (quene.isInitialized) {
-      state = quene.baseState
-    }else {
-      state = quene.baseState = workInProgress.memorizedState
-      quene.isInitialized = true
-    }
-    let dontMutatePrevState = true
-    let update = quene.first
-    let didSkip = false
-
-    while(update) {
-      // 遍历所有的update，assign所有的_partialState
-      let updateExpirationTime = update.expirationTime
-      if (updateExpirationTime > renderExpirationTime) {
-
-      }
-
-      if (!didSkip) {
-        quene.first = quene.next
-        if (!quene.first) {
-          quene.last = null
-        }
-      }
-
-      // process the update
-      let _partialState = null
-      if (update.isReplace) {
-
-      }else {
-        _partialState = update.partialState
-        if (_partialState) {
-          if (dontMutatePrevState) {
-            state = Object.assign({}, state, _partialState)
-          }
-        }
-        dontMutatePrevState = false
-      }
-      if (update.isForced) {
-        queue.hasForceUpdate = true
-      }
-      update = update.next
-    }
-
-    if (!didSkip) {
-      didSkip = true,
-      quene.baseState = state
-    }
-    return state
   }
 
   reconcileChildren (current, workInProgress, nextChildren) {

@@ -3,6 +3,9 @@ import MReact from '../src/MReact'
 class App extends MReact.Component {
   constructor () {
     super()
+    this.state = {
+      'content': 111
+    }
   }
 
   getDerivedStateFromProps () {
@@ -10,12 +13,14 @@ class App extends MReact.Component {
   }
 
   componentDidMount () {
-
+    this.setState({
+      'content': '222'
+    })
   }
 
   render () {
     return (
-      <div>内容</div>
+      <div>{this.state.content}</div>
     )
   }
 }

@@ -12,6 +12,7 @@ let isCommiting = false
 
 class ReactRoot extends ScheduleWork {
   constructor (containerInfo) {
+    super()
      this._internalRoot = this.createFiberRoot(containerInfo)
     //  this.nextUnitOfWork = null
     this.rootWorkInProgress = null
@@ -55,13 +56,35 @@ class ReactRoot extends ScheduleWork {
       capturedValues: null
     }
     current.updateQuene = quene
+    this.scheduleWork(current, expirationTime)
   }
 
-  renderRoot (children) {
+  render (children) {
     this.scheduleRootUpdate(this._internalRoot.current, children, 1)
-    this.rootWorkInProgress = this.createWorkInProgress(this._internalRoot.current, null, 1)
-    this.workLoop(this.rootWorkInProgress)
-    this.commitRoot(this._internalRoot.current.alternate, this._internalRoot.containerInfo)
+  }
+
+  renderRoot (root, expirationTime, isAsync) {
+    window.nextUnitOfWork = this.createWorkInProgress(root.current, null, 1)
+    this.workLoop(false)
+
+    let didCompleteRoot = false
+    window.isWorking = false
+
+    if (window.nextUnitOfWork === null) {
+      // we reached the root
+      if (window.isRootReadyForCommit) {
+        didCompleteRoot = true
+        root.pendingCommitExpirationTime = expirationTime
+        let finishedWork = root.current.alternate
+        return finishedWork
+      }else {
+        // the root did not complete
+        window.interruptedBy = null
+      }
+    }else {
+      window.interruptedBy = null
+      return null
+    }
   }
 
   createWorkInProgress (current, pendingProps, expirationTime) {
