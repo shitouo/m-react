@@ -401,13 +401,13 @@ class ScheduleWork extends UpdateWorks {
       let primaryEffectTag = effectTag & (constance.effects.Placement | constance.effects.Update | constance.effects.Deletion);
       switch(primaryEffectTag) {
         case constance.effects.Placement: {
-          this.commitPlacement(nextEffect, container)
+          this.commitPlacement(nextEffect)
           nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
           break;
         }
         case constance.effects.PlacementAndUpdate: {
           // Placement
-          this.commitPlacement(nextEffect, container)
+          this.commitPlacement(nextEffect)
           nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
           
           // Update
@@ -447,7 +447,7 @@ class ScheduleWork extends UpdateWorks {
     return remainingTime
   }
 
-  commitPlacement(finishedWork, container) {
+  commitPlacement(finishedWork) {
     document.getElementById('root').appendChild(finishedWork.stateNode)
   }
 

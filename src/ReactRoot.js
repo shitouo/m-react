@@ -55,7 +55,7 @@ class ReactRoot extends ScheduleWork {
       isInitialized: false,
       capturedValues: null
     }
-    current.updateQuene = quene
+    current.updateQueue = quene
     this.scheduleWork(current, expirationTime)
   }
 
@@ -109,7 +109,7 @@ class ReactRoot extends ScheduleWork {
     // workInProgress.return = current.return
     workInProgress.memorizedProps = current.memorizedProps
     workInProgress.memorizedState = current.memorizedState
-    workInProgress.updateQuene = current.updateQuene
+    workInProgress.updateQueue = current.updateQueue
 
     return workInProgress
     
