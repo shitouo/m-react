@@ -107,12 +107,12 @@ class UpdateWorks {
   }
 
   updateHostRoot (current, workInProgress, renderExpirationTime) {
-    let updateQuene = workInProgress.updateQuene
-    if (updateQuene) {
+    let updateQueue = workInProgress.updateQueue
+    if (updateQueue) {
       const prevState = workInProgress.memorizedState
-      const state = util.processUpdateQueue(current, workInProgress, updateQuene, null, null, renderExpirationTime)
+      const state = util.processUpdateQueue(current, workInProgress, updateQueue, null, null, renderExpirationTime)
       workInProgress.memorizedState = state
-      updateQuene = workInProgress.updateQuene
+      updateQueue = workInProgress.updateQueue
       let element
       if (prevState === state) {
         // if the state is the same as before, that's a bailout because we had no work that expires at this time
@@ -164,7 +164,7 @@ class UpdateWorks {
       }
     }else {
       // 已经装载过，现在是更新
-      shouldUpdate = ClassComponent.updateClassInstance()
+      shouldUpdate = ClassComponent.updateClassInstance(current, workInProgress, renderExpirationTime)
     }
 
     return this.finishClassComponent(current, workInProgress, shouldUpdate, null, null, renderExpirationTime)

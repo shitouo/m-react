@@ -283,7 +283,14 @@ class ScheduleWork extends UpdateWorks {
         }
       case constance.tags.HostComponent: {
         if (current && workInProgress.stateNode) {
-          // TODO 之前已经创建了
+          // 之前已经创建了
+          let oldProps = current.memorizedProps
+          let _instance = workInProgress.stateNode
+          let updatePayload = this.diffProperties(_instance, workInProgress.tag, oldProps, newProps, null)
+          workInProgress.updateQueue = updatePayload
+          if (updatePayload) {
+            workInProgress.effectTag |= Update
+          }
         }else {
           if (!newProps) {
             return null
@@ -295,6 +302,61 @@ class ScheduleWork extends UpdateWorks {
         return null
       }  
     }
+  }
+
+  diffProperties (domElement, tag, lastRawProps, nextRawProps, rootContainerElement) {
+    let updatePayload = null
+    let lastProps = void 0
+    let nextProps = void 0
+    switch (tag) {
+      default: {
+        lastProps = lastRawProps
+        nextProps = nextRawProps
+        if (typeof lastProps.onClick !== 'function' || typeof nextProps.onClick === 'function') {
+          // TODO
+        }
+        break
+      } 
+    }
+
+    let propKey = void 0
+    let styleName = void 0
+    let styleUpdates = null
+    for (propKey in lastProps) {
+      if (nextProps.hasOwnProperty(propKey) || !lastProps.hasOwnProperty(propKey) || lastProps[propKey] === null) {
+        continue
+      }
+      if (propKey === 'style') {
+        // TODO
+      }else if (propKey === 'children') {
+        // NOOP. This is handled by the clear text mechanism.
+      }else {
+        (updatePayload = updatePayload || []).push(propKey, null)
+      }
+    }
+
+    for (propKey in nextProps) {
+      let nextProp = nextProps[propKey]
+      let lastProp = lastProps ? lastProps[propKey] : undefined // 之前的属性值
+      if (!nextProps.hasOwnProperty(propKey) || nextProp === lastProp || nextProp == null && lastProp == null) {
+        continue
+      }
+      if (propKey === 'style') {
+        // TODO
+      }else if (propKey === 'children') {
+        if (lastProp !== nextProp && (typeof nextProp === 'string' || typeof nextProp === 'number')) {
+          (updatePayload = updatePayload || []).push(propKey, '' + nextProp)
+        }
+      }else {
+        (updatePayload = updatePayload || []).push(propKey, nextProp)
+      }
+    }
+
+    if (styleUpdates) {
+      (updatePayload = updatePayload || []).push('style', styleUpdates)
+    }
+
+    return updatePayload
   }
 
   beginWork (current, workInProgress, renderExpirationTime) {
@@ -343,6 +405,15 @@ class ScheduleWork extends UpdateWorks {
           nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
           break;
         }
+        case constance.effects.PlacementAndUpdate: {
+          // Placement
+          this.commitPlacement(nextEffect, container)
+          nextEffect.effectTag &= ~constance.effects.Placement // 去掉当前任务
+          
+          // Update
+          let _current = nextEffect.alternate
+          this.commitWork(_current, nextEffect)
+        }
       }
       nextEffect = nextEffect.nextEffect;
     }
@@ -378,6 +449,70 @@ class ScheduleWork extends UpdateWorks {
 
   commitPlacement(finishedWork, container) {
     document.getElementById('root').appendChild(finishedWork.stateNode)
+  }
+
+  commitWork (current, finishedWork) {
+    // Update的commit工作
+    switch (finishedWork.tag) {
+      case constance.tags.ClassComponent: {
+        return
+      }
+      case constance.tags.HostComponent: {
+        let _instance8 = finishedWork.stateNode
+        if (_instance8) {
+          let newProps = finishedWork.memorizedProps
+          let oldProps = current ? current.memorizedProps : newProps
+          let type = finishedWork.type
+          let updatePayload = finishedWork.updateQueue
+          finishedWork.updateQueue = null
+          if (updatePayload) {
+            this.commitUpdate(_instance8, updatePayload, type, oldProps, newProps, finishedWork)
+          }
+        }
+        return
+      }
+      case constance.tags.HostText: {
+        let textInstance = finishedWork.stateNode
+        let nextText = finishedWork.memorizedProps
+
+        let oldText = current ? current.memorizedProps : newText
+        this.commitTextUpdate(textInstance, oldText, newText)
+        return
+      }
+    }
+  }
+
+  commitUpdate (domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
+    // update the props handle so that we know which props are the ones with current event handles
+    // updateFiberProps
+    const randomKey = Math.random().toString(36).slice(2);
+    const internalEventHandlersKey = '__reactEventHandlers$' + randomKey;
+    domElement[internalEventHandlersKey] = newProps;
+
+    // apply the diff to the dom node
+    // updateProperties
+    for (let i = 0; i < updatePayload.length; i += 2) {
+      let propKey = updatePayload[i]
+      let propValue = updatePayload[i + 1]
+      if (propKey === 'style') {
+        // TODO
+      }else if (propKey === 'children') {
+        if (propValue) {
+          let firstChild = domElement.firstChild
+          if (firstChild && firstChild === node.lastChild && firstChild.nodeType === 3) {
+            firstChild.nodeValue = propValue
+            return
+          }
+        }
+        node.textContent = propValue
+      }else {
+        // TODO
+      }
+    }
+  }
+
+  commitTextUpdate (textInstance, oldText, newText) {
+    textInstance.nodeValue = newText
   }
 
   commitLifeCycles (finishedRoot, current, finishedWork, currentTime, committedExpirationTime) {

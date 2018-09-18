@@ -6,11 +6,13 @@ class Constance {
     this.effects = {
       NoEffect: 0,
       Placement: 2,
+      PlacementAndUpdate: 6,
       Incomplete: 512,
       PerformedWork: 1,
       Update: 4,
       Deletion: 8,
-      Callback: 32
+      Callback: 32,
+      Snapshot: 2048
     }
     this.tags = {
       HostRoot: 3,

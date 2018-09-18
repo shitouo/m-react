@@ -65,6 +65,8 @@ const ClassComponent = {
     let oldState = workInProgress.memorizedState
     let newState = void 0
     let derivedStateFromCatch = void 0
+
+    // 从updateQueue中获取新的state
     if (workInProgress.updateQueue) {
       newState = util.processUpdateQueue(current, workInProgress, workInProgress.updateQueue, instance, newProps, renderExpirationTime)
 
@@ -76,18 +78,68 @@ const ClassComponent = {
       newState = oldState
     }
 
-    // get newState from props
+    // 从生命周期中获取新的state
     let derivedStateFromProps = void 0
     if (oldProps !== newProps) {
       derivedStateFromProps = this.callGetDerivedStateFromProps(workInProgress, newProps, newState)
     }
     if (derivedStateFromProps) {
-      newState = !newState ? derivedStateFromProps : _assign({}, newState, derivedStateFromProps)
-      var _updateQueue3 = workInProgress.updateQueue;
-      if (_updateQueue3 !== null) {
-        _updateQueue3.baseState = _assign({}, _updateQueue3.baseState, derivedStateFromProps);
+      newState = !newState ? derivedStateFromProps : Object.assign({}, newState, derivedStateFromProps)
+      let _updateQueue3 = workInProgress.updateQueue
+      if (_updateQueue3) {
+        _updateQueue3.baseState = Object.assign({}, _updateQueue3.baseState, derivedStateFromProps)
       }
     }
+
+    // if an update was already in progress, we should schedule an update effect
+    // even though we are bailing out, so that cWU/cDU are called
+    if (oldProps === newProps && oldState === newState && !(workInProgress.updateQueue !== null && workInProgress.updateQueue.hasForceUpdate)) {
+      if (typeof instance.componentDidUpdate === 'function') {
+        if (oldProps !== current.memorizedProps || oldState !== current.memorizedState) {
+          workInProgress.effectTag |= constance.effects.Update
+        }
+      }
+      if (typeof instance.getSnapshotBeforeUpdate === 'function') {
+        if (oldProps !== current.memorizedProps || oldState !== current.memorizedState) {
+          workInProgress.effectTag |= constance.effects.Snapshot
+        }
+      }
+      return false
+    }
+    
+    // 判断shouldUpdate
+    let shouldUpdate = this.checkShouldComponentUpdate(workInProgress, oldProps, newProps, oldState, newState, null)
+
+    if (shouldUpdate) {
+      if (typeof instance.componentDidUpdate === 'function') {
+        workInProgress.effectTag |= constance.effects.Update
+      }
+      if (typeof instance.getSnapshotBeforeUpdate === 'function') {
+        workInProgress.effectTag |= constance.effects.Snapshot
+      }
+    }else {
+      // TODO
+    }
+
+    instance.props = newProps
+    instance.state = newState
+
+    return shouldUpdate
+  },
+
+  checkShouldComponentUpdate (workInProgress, oldProps, newProps, oldState, newState, newContext) {
+    if (oldProps === null || workInProgress.updateQueue !==null && workInProgress.updateQueue.hasForceUpdate) {
+      return true
+    }
+
+    let instance = workInProgress.stateNode
+    let ctor = workInProgress.type
+    if (typeof instance.shouldComponentUpdate === 'function') {
+      let shouldUpdate = instance.shouldComponentUpdate(newProps, newState, newContext)
+      return shouldUpdate
+    }
+
+    return true
   }
 }
 

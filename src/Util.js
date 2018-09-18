@@ -1,6 +1,10 @@
 /**
  * 通用的工具函数
  */
+import Constance from './Constance'
+
+const constance = new Constance()
+
 class Util {
   processUpdateQueue (current, workInProgress, quene, instance, props, renderExpirationTime) {
     const currentQuene = quene
