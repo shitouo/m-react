@@ -175,7 +175,7 @@ class UpdateWorks {
     const instance = workInProgress.stateNode
     const nextChildren = instance.render()
     let currentChild = current ? current.child : null
-    workInProgress.child = this.reconcileChildFibers(workInProgress, currentChild, nextChildren, renderExpirationTime)
+    this.reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
 
     return workInProgress.child
   }
@@ -242,7 +242,7 @@ class UpdateWorks {
     }
   }
 
-  reconcileChildren (current, workInProgress, nextChildren) {
+  reconcileChildren (current, workInProgress, nextChildren, expirationTime) {
     if (!current) {
       // If this is a fresh new component that hasn't been rendered yet, we
       // won't update its child set by applying minimal side-effects. Instead,

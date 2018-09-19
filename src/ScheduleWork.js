@@ -448,7 +448,72 @@ class ScheduleWork extends UpdateWorks {
   }
 
   commitPlacement(finishedWork) {
-    document.getElementById('root').appendChild(finishedWork.stateNode)
+    // Recursively insert all host nodes into the parent.
+
+    // 获取parent
+    let parentFiber = finishedWork.return
+    while (parentFiber !== null) {
+      if (parentFiber.tag === constance.tags.HostComponent || parentFiber.tag === constance.tags.HostRoot) {
+        break
+      }
+      parentFiber = parentFiber.return;
+    }
+
+    let parent = void 0
+    let isContainer = void 0
+    switch (parentFiber.tag) {
+      case constance.tags.HostComponent: {
+        parent = parentFiber.stateNode
+        isContainer = false
+        break
+      }
+      case constance.tags.HostRoot: {
+        parent = parentFiber.current.containerInfo
+        isContainer = true
+        break
+      }
+    }
+    var before = getHostSibling(finishedWork);
+  // We only have the top Fiber that was inserted but we need recurse down its
+  // children to find all the terminal nodes.
+    var node = finishedWork;
+    while (true) {
+      if (node.tag === HostComponent || node.tag === HostText) {
+        if (before) {
+          if (isContainer) {
+            insertInContainerBefore(parent, node.stateNode, before);
+          } else {
+            insertBefore(parent, node.stateNode, before);
+          }
+        } else {
+          if (isContainer) {
+            appendChildToContainer(parent, node.stateNode);
+          } else {
+            appendChild(parent, node.stateNode);
+          }
+        }
+      } else if (node.tag === HostPortal) {
+        // If the insertion itself is a portal, then we don't want to traverse
+        // down its children. Instead, we'll get insertions from each child in
+        // the portal directly.
+      } else if (node.child !== null) {
+        node.child.return = node;
+        node = node.child;
+        continue;
+      }
+      if (node === finishedWork) {
+        return;
+      }
+      while (node.sibling === null) {
+        if (node.return === null || node.return === finishedWork) {
+          return;
+        }
+        node = node.return;
+      }
+      node.sibling.return = node.return;
+      node = node.sibling;
+    }
+    // document.getElementById('root').appendChild(finishedWork.stateNode)
   }
 
   commitWork (current, finishedWork) {
