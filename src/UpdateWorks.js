@@ -244,8 +244,14 @@ class UpdateWorks {
 
   reconcileChildren (current, workInProgress, nextChildren) {
     if (!current) {
+      // If this is a fresh new component that hasn't been rendered yet, we
+      // won't update its child set by applying minimal side-effects. Instead,
+      // we will add them all to the child before it gets rendered. That means
+      // we can optimize this reconciliation pass by not tracking side-effects.
+      window.shouldTrackSideEffects = false
       workInProgress.child = this.reconcileChildFibers(workInProgress, null, nextChildren, 1)
     }else {
+      window.shouldTrackSideEffects = true
       workInProgress.child = this.reconcileChildFibers(workInProgress, current.child, nextChildren, 1)
     }
   }
@@ -319,7 +325,11 @@ class UpdateWorks {
   }
 
   placeSingleChild (newFiber) {
-    newFiber.effectTag = constance.effects.Placement
+    if (window.shouldTrackSideEffects && newFiber.alternate === null) {
+      // 只有在
+      newFiber.effectTag = constance.effects.Placement
+    }
+    return newFiber
   }
   
 }
