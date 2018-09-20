@@ -177,14 +177,17 @@ class Constance {
       ClassComponent: 2,
       FunctionalComponent: 1,
       HostText: 6,
-      HostComponent: 5
+      HostComponent: 5,
+      Fragment: 10
     };
     this.works = {
-      NoWork: 0
+      NoWork: 0,
+      Never: 1073741823
     };
     this.$$types = {
       REACT_ELEMENT_TYPE: typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.element') : 0xeac7,
-      REACT_PORTAL_TYPE: typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.portal') : 0xeaca
+      REACT_PORTAL_TYPE: typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.portal') : 0xeaca,
+      REACT_FRAGMENT_TYPE: typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.fragment') : 0xeacb
     };
 
     this.mode = {
@@ -424,7 +427,7 @@ class ReactRoot extends _ScheduleWork__WEBPACK_IMPORTED_MODULE_2__["default"] {
     const update = {
       expirationTime: expirationTime,
       partialState: { element: element },
-      callback: null,
+      callback: function () {},
       isReplace: false,
       isForced: false,
       capturedValue: null,
@@ -741,6 +744,10 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
         // 处理当前节点，做好commit前的准备工作
         let next = this.completeWork(current, workInProgress);
         if (next) {}
+
+        // 重置剩余时间
+        this.resetExpirationTime(workInProgress, null);
+
         // 要保证return的所有子节点都complete，才会合并effects提交
         if (returnFiber && (returnFiber.effectTag & constance.effects.Incomplete) === constance.effects.NoEffect) {
           // 合并children的effects到return
@@ -753,16 +760,17 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
             }
             returnFiber.lastEffect = workInProgress.lastEffect;
           }
-        }
-        // 合并自身的effects到return，并且是在children的后面
-        const effectTag = workInProgress.effectTag;
-        if (effectTag > constance.effects.PerformedWork) {
-          if (returnFiber.lastEffect) {
-            returnFiber.lastEffect.nextEffect = workInProgress; // 这里的结构类似于链表结构
-          } else {
-            returnFiber.firstEffect = workInProgress;
+
+          // 合并自身的effects到return，并且是在children的后面
+          const effectTag = workInProgress.effectTag;
+          if (effectTag > constance.effects.PerformedWork) {
+            if (returnFiber.lastEffect) {
+              returnFiber.lastEffect.nextEffect = workInProgress; // 这里的结构类似于链表结构
+            } else {
+              returnFiber.firstEffect = workInProgress;
+            }
+            returnFiber.lastEffect = workInProgress;
           }
-          returnFiber.lastEffect = workInProgress;
         }
 
         if (siblingFiber) {
@@ -779,6 +787,45 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
 
       return null;
     }
+  }
+
+  resetExpirationTime(workInProgress, renderTime) {
+    if (renderTime !== constance.works.Never && workInProgress.expirationTime === constance.works.Never) {
+      // The children of this component are hidden. Don't bubble their
+      // expiration times.
+      return;
+    }
+
+    // check for pending updates
+    let newExpirationTime;
+    switch (workInProgress.tag) {
+      case constance.tags.HostRoot:
+      case constance.tags.ClassComponent:
+        {
+          let updateQueue = workInProgress.updateQueue;
+          if (!updateQueue) {
+            newExpirationTime = constance.works.NoWork;
+            break;
+          }
+          newExpirationTime = workInProgress.expirationTime;
+          break;
+        }
+      default:
+        {
+          newExpirationTime = constance.works.NoWork;
+        }
+    }
+
+    // Bubble up the earliest expiration time
+    let child = workInProgress.child;
+    while (child) {
+      if (child.expirationTime !== constance.works.NoWork && (newExpirationTime === constance.works.NoWork || newExpirationTime > child.expirationTime)) {
+        newExpirationTime = child.expirationTime;
+      }
+      child = child.sibling;
+    }
+
+    workInProgress.expirationTime = newExpirationTime;
   }
 
   completeWork(current, workInProgress, renderExpirationTime) {
@@ -803,7 +850,7 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
             let updatePayload = this.diffProperties(_instance, workInProgress.tag, oldProps, newProps, null);
             workInProgress.updateQueue = updatePayload;
             if (updatePayload) {
-              workInProgress.effectTag |= Update;
+              workInProgress.effectTag |= constance.effects.Update;
             }
           } else {
             if (!newProps) {
@@ -935,6 +982,12 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
       nextEffect = nextEffect.nextEffect;
     }
 
+    // The work-in-progress tree is now the current tree. This must come after
+    // the first pass of the commit phase, so that the previous tree is still
+    // current during componentWillUnmount, but before the second pass, so that
+    // the finished work is current during componentDidMount/Update.
+    root.current = finishedWork;
+
     // 这里要消费掉所有的生命周期
     nextEffect = firstEffect;
     while (nextEffect) {
@@ -965,7 +1018,57 @@ class ScheduleWork extends _UpdateWorks__WEBPACK_IMPORTED_MODULE_1__["default"] 
   }
 
   commitPlacement(finishedWork) {
-    document.getElementById('root').appendChild(finishedWork.stateNode);
+    // Recursively insert all host nodes into the parent.
+
+    // 获取parent
+    let parentFiber = finishedWork.return;
+    while (parentFiber !== null) {
+      if (parentFiber.tag === constance.tags.HostComponent || parentFiber.tag === constance.tags.HostRoot) {
+        break;
+      }
+      parentFiber = parentFiber.return;
+    }
+
+    let parent = void 0;
+    let isContainer = void 0;
+    switch (parentFiber.tag) {
+      case constance.tags.HostComponent:
+        {
+          parent = parentFiber.stateNode;
+          isContainer = false;
+          break;
+        }
+      case constance.tags.HostRoot:
+        {
+          parent = parentFiber.stateNode.containerInfo;
+          isContainer = true;
+          break;
+        }
+    }
+    // var before = getHostSibling(finishedWork);
+    // We only have the top Fiber that was inserted but we need recurse down its
+    // children to find all the terminal nodes.
+    let node = finishedWork;
+    while (true) {
+      if (node.tag === constance.tags.HostComponent || node.tag === constance.tags.HostText) {
+        parent.appendChild(node.stateNode);
+      } else if (node.child !== null) {
+        node.child.return = node;
+        node = node.child;
+        continue;
+      }
+      if (node === finishedWork) {
+        return;
+      }
+      while (node.sibling === null) {
+        if (node.return === null || node.return === finishedWork) {
+          return;
+        }
+        node = node.return;
+      }
+      node.sibling.return = node.return;
+      node = node.sibling;
+    }
   }
 
   commitWork(current, finishedWork) {
@@ -1193,7 +1296,6 @@ class UpdateWorks {
       const prevState = workInProgress.memorizedState;
       const state = util.processUpdateQueue(current, workInProgress, updateQueue, null, null, renderExpirationTime);
       workInProgress.memorizedState = state;
-      updateQueue = workInProgress.updateQueue;
       let element;
       if (prevState === state) {
         // if the state is the same as before, that's a bailout because we had no work that expires at this time
@@ -1258,6 +1360,10 @@ class UpdateWorks {
     let currentChild = current ? current.child : null;
     this.reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime);
 
+    // 更新缓存
+    workInProgress.memorizedProps = instance.props;
+    workInProgress.memorizedState = instance.state;
+
     return workInProgress.child;
   }
 
@@ -1275,6 +1381,7 @@ class UpdateWorks {
       }
     }
     this.reconcileChildren(current, workInProgress, nextChildren);
+    workInProgress.memorizedProps = nextProps;
     return workInProgress.child;
   }
 
@@ -1369,8 +1476,21 @@ class UpdateWorks {
     const child = currentFirstChild;
 
     while (child) {
-      // TODO
-      break;
+      // 已经装载过child
+      if (child.key === key) {
+        if (child.tag === constance.tags.Fragment ? element.type === constance.$$types.REACT_FRAGMENT_TYPE : child.type === element.type) {
+          let existing = this.createWorkInProgress(child, element.props, expirationTime);
+          existing.index = 0;
+          existing.sibling = null;
+          existing.return = returnFiber;
+          return existing;
+        } else {
+          break;
+        }
+      } else {
+        // TODO
+      }
+      child = child.sibling;
     }
 
     let _create4 = this.createFiberFromElement(element, expirationTime);
@@ -1438,32 +1558,32 @@ __webpack_require__.r(__webpack_exports__);
 const constance = new _Constance__WEBPACK_IMPORTED_MODULE_0__["default"]();
 
 class Util {
-  processUpdateQueue(current, workInProgress, quene, instance, props, renderExpirationTime) {
-    const currentQuene = quene;
-    quene = workInProgress.updateQuene = {
-      baseState: currentQuene.baseState,
-      expirationTime: currentQuene.expirationTime,
-      first: currentQuene.first,
-      last: currentQuene.last,
-      isInitialized: currentQuene.isInitialized,
-      capturedValues: currentQuene.capturedValues,
+  processUpdateQueue(current, workInProgress, queue, instance, props, renderExpirationTime) {
+    const currentQueue = queue;
+    queue = workInProgress.updateQueue = {
+      baseState: currentQueue.baseState,
+      expirationTime: currentQueue.expirationTime,
+      first: currentQueue.first,
+      last: currentQueue.last,
+      isInitialized: currentQueue.isInitialized,
+      capturedValues: currentQueue.capturedValues,
       // These fields are no longer valid because they were already committed.
       // Reset them.
       callbackList: null,
       hasForceUpdate: false
     };
 
-    quene.expirationTime = constance.works.NoWork;
+    queue.expirationTime = constance.works.NoWork;
 
     let state = null;
-    if (quene.isInitialized) {
-      state = quene.baseState;
+    if (queue.isInitialized) {
+      state = queue.baseState;
     } else {
-      state = quene.baseState = workInProgress.memorizedState;
-      quene.isInitialized = true;
+      state = queue.baseState = workInProgress.memorizedState;
+      queue.isInitialized = true;
     }
     let dontMutatePrevState = true;
-    let update = quene.first;
+    let update = queue.first;
     let didSkip = false;
 
     while (update) {
@@ -1472,9 +1592,9 @@ class Util {
       if (updateExpirationTime > renderExpirationTime) {}
 
       if (!didSkip) {
-        quene.first = quene.next;
-        if (!quene.first) {
-          quene.last = null;
+        queue.first = queue.next;
+        if (!queue.first) {
+          queue.last = null;
         }
       }
 
@@ -1492,11 +1612,27 @@ class Util {
       if (update.isForced) {
         queue.hasForceUpdate = true;
       }
+
+      if (update.callback) {
+        let _callBackList = queue.callbackList;
+        if (_callBackList === null) {
+          _callBackList = queue.callbackList = [];
+        }
+        _callBackList.push(update);
+      }
+
       update = update.next;
     }
 
+    if (queue.callbackList !== null) {
+      workInProgress.effectTag |= constance.effects.Callback;
+    } else if (!queue.first && !queue.hasForceUpdate && !queue.capturedValues) {
+      // The queue is empty. We can reset it.
+      workInProgress.updateQueue = null;
+    }
+
     if (!didSkip) {
-      didSkip = true, quene.baseState = state;
+      didSkip = true, queue.baseState = state;
     }
     return state;
   }

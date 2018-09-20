@@ -64,15 +64,16 @@ class Util {
       if (update.isForced) {
         queue.hasForceUpdate = true
       }
-      update = update.next
-    }
 
-    if (update.callback) {
-      let _callBackList = queue.callbackList
-      if (_callBackList === null) {
-        _callBackList = queue.callbackList = []
+      if (update.callback) {
+        let _callBackList = queue.callbackList
+        if (_callBackList === null) {
+          _callBackList = queue.callbackList = []
+        }
+        _callBackList.push(update)
       }
-      _callBackList.push(update)
+
+      update = update.next
     }
 
     if (queue.callbackList !== null) {

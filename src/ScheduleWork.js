@@ -243,18 +243,18 @@ class ScheduleWork extends UpdateWorks {
             returnFiber.lastEffect = workInProgress.lastEffect
           }
           
-        }
-        // 合并自身的effects到return，并且是在children的后面
-        const effectTag = workInProgress.effectTag
-        if (effectTag > constance.effects.PerformedWork) {
-          if (returnFiber.lastEffect) {
-            returnFiber.lastEffect.nextEffect = workInProgress // 这里的结构类似于链表结构
-          }else {
-            returnFiber.firstEffect = workInProgress
+          // 合并自身的effects到return，并且是在children的后面
+          const effectTag = workInProgress.effectTag
+          if (effectTag > constance.effects.PerformedWork) {
+            if (returnFiber.lastEffect) {
+              returnFiber.lastEffect.nextEffect = workInProgress // 这里的结构类似于链表结构
+            }else {
+              returnFiber.firstEffect = workInProgress
+            }
+            returnFiber.lastEffect = workInProgress
           }
-          returnFiber.lastEffect = workInProgress
         }
-
+        
         if (siblingFiber) {
           return siblingFiber
         }else if(returnFiber) {
@@ -330,7 +330,7 @@ class ScheduleWork extends UpdateWorks {
           let updatePayload = this.diffProperties(_instance, workInProgress.tag, oldProps, newProps, null)
           workInProgress.updateQueue = updatePayload
           if (updatePayload) {
-            workInProgress.effectTag |= Update
+            workInProgress.effectTag |= constance.effects.Update
           }
         }else {
           if (!newProps) {

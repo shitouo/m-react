@@ -176,6 +176,10 @@ class UpdateWorks {
     let currentChild = current ? current.child : null
     this.reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
 
+    // 更新缓存
+    workInProgress.memorizedProps = instance.props
+    workInProgress.memorizedState = instance.state
+
     return workInProgress.child
   }
 
@@ -193,6 +197,7 @@ class UpdateWorks {
       }
     }
     this.reconcileChildren(current, workInProgress, nextChildren)
+    workInProgress.memorizedProps = nextProps
     return workInProgress.child
   }
 
@@ -290,7 +295,7 @@ class UpdateWorks {
           let existing = this.createWorkInProgress(child, element.props, expirationTime)
           existing.index = 0
           existing.sibling = null
-          existing.return = child.return
+          existing.return = returnFiber
           return existing
         }else {
           break
