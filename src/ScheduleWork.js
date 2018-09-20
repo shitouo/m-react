@@ -226,6 +226,10 @@ class ScheduleWork extends UpdateWorks {
         if (next) {
 
         }
+
+        // 重置剩余时间
+        this.resetExpirationTime(workInProgress, null)
+
         // 要保证return的所有子节点都complete，才会合并effects提交
         if (returnFiber && (returnFiber.effectTag & constance.effects.Incomplete) === constance.effects.NoEffect) {
           // 合并children的effects到return
@@ -265,6 +269,43 @@ class ScheduleWork extends UpdateWorks {
 
       return null
     }
+  }
+
+  resetExpirationTime (workInProgress, renderTime) {
+    if (renderTime !== constance.works.Never && workInProgress.expirationTime === constance.works.Never) {
+      // The children of this component are hidden. Don't bubble their
+      // expiration times.
+      return
+    }
+
+    // check for pending updates
+    let newExpirationTime
+    switch(workInProgress.tag) {
+      case constance.tags.HostRoot:
+      case constance.tags.ClassComponent: {
+        let updateQueue = workInProgress.updateQueue
+        if (!updateQueue) {
+          newExpirationTime = constance.works.NoWork
+          break
+        }
+        newExpirationTime = workInProgress.expirationTime
+        break
+      }
+      default: {
+        newExpirationTime = constance.works.NoWork
+      }
+    }
+
+    // Bubble up the earliest expiration time
+    let child = workInProgress.child
+    while(child) {
+      if (child.expirationTime !== constance.works.NoWork && (newExpirationTime === constance.works.NoWork || newExpirationTime > child.expirationTime)) {
+        newExpirationTime = child.expirationTime
+      }
+      child = child.sibling
+    }
+
+    workInProgress.expirationTime = newExpirationTime
   }
 
   completeWork (current, workInProgress, renderExpirationTime) {
@@ -418,6 +459,12 @@ class ScheduleWork extends UpdateWorks {
       nextEffect = nextEffect.nextEffect;
     }
 
+    // The work-in-progress tree is now the current tree. This must come after
+    // the first pass of the commit phase, so that the previous tree is still
+    // current during componentWillUnmount, but before the second pass, so that
+    // the finished work is current during componentDidMount/Update.
+    root.current = finishedWork
+
     // 这里要消费掉所有的生命周期
     nextEffect = firstEffect
     while (nextEffect) {
@@ -468,34 +515,18 @@ class ScheduleWork extends UpdateWorks {
         break
       }
       case constance.tags.HostRoot: {
-        parent = parentFiber.current.containerInfo
+        parent = parentFiber.stateNode.containerInfo
         isContainer = true
         break
       }
     }
-    var before = getHostSibling(finishedWork);
-  // We only have the top Fiber that was inserted but we need recurse down its
-  // children to find all the terminal nodes.
-    var node = finishedWork;
+    // var before = getHostSibling(finishedWork);
+    // We only have the top Fiber that was inserted but we need recurse down its
+    // children to find all the terminal nodes.
+    let node = finishedWork;
     while (true) {
-      if (node.tag === HostComponent || node.tag === HostText) {
-        if (before) {
-          if (isContainer) {
-            insertInContainerBefore(parent, node.stateNode, before);
-          } else {
-            insertBefore(parent, node.stateNode, before);
-          }
-        } else {
-          if (isContainer) {
-            appendChildToContainer(parent, node.stateNode);
-          } else {
-            appendChild(parent, node.stateNode);
-          }
-        }
-      } else if (node.tag === HostPortal) {
-        // If the insertion itself is a portal, then we don't want to traverse
-        // down its children. Instead, we'll get insertions from each child in
-        // the portal directly.
+      if (node.tag === constance.tags.HostComponent || node.tag === constance.tags.HostText) {
+        parent.appendChild(node.stateNode)
       } else if (node.child !== null) {
         node.child.return = node;
         node = node.child;
@@ -513,7 +544,6 @@ class ScheduleWork extends UpdateWorks {
       node.sibling.return = node.return;
       node = node.sibling;
     }
-    // document.getElementById('root').appendChild(finishedWork.stateNode)
   }
 
   commitWork (current, finishedWork) {

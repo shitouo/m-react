@@ -39,7 +39,7 @@ class ReactRoot extends ScheduleWork {
     const update = {
       expirationTime: expirationTime,
       partialState: { element: element },
-      callback: null,
+      callback: function () {},
       isReplace: false,
       isForced: false,
       capturedValue: null,

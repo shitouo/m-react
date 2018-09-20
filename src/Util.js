@@ -6,32 +6,32 @@ import Constance from './Constance'
 const constance = new Constance()
 
 class Util {
-  processUpdateQueue (current, workInProgress, quene, instance, props, renderExpirationTime) {
-    const currentQuene = quene
-    quene = workInProgress.updateQuene = {
-      baseState: currentQuene.baseState,
-      expirationTime: currentQuene.expirationTime,
-      first: currentQuene.first,
-      last: currentQuene.last,
-      isInitialized: currentQuene.isInitialized,
-      capturedValues: currentQuene.capturedValues,
+  processUpdateQueue (current, workInProgress, queue, instance, props, renderExpirationTime) {
+    const currentQueue = queue
+    queue = workInProgress.updateQueue = {
+      baseState: currentQueue.baseState,
+      expirationTime: currentQueue.expirationTime,
+      first: currentQueue.first,
+      last: currentQueue.last,
+      isInitialized: currentQueue.isInitialized,
+      capturedValues: currentQueue.capturedValues,
       // These fields are no longer valid because they were already committed.
       // Reset them.
       callbackList: null,
       hasForceUpdate: false
     }
 
-    quene.expirationTime = constance.works.NoWork
+    queue.expirationTime = constance.works.NoWork
 
     let state = null
-    if (quene.isInitialized) {
-      state = quene.baseState
+    if (queue.isInitialized) {
+      state = queue.baseState
     }else {
-      state = quene.baseState = workInProgress.memorizedState
-      quene.isInitialized = true
+      state = queue.baseState = workInProgress.memorizedState
+      queue.isInitialized = true
     }
     let dontMutatePrevState = true
-    let update = quene.first
+    let update = queue.first
     let didSkip = false
 
     while(update) {
@@ -42,9 +42,9 @@ class Util {
       }
 
       if (!didSkip) {
-        quene.first = quene.next
-        if (!quene.first) {
-          quene.last = null
+        queue.first = queue.next
+        if (!queue.first) {
+          queue.last = null
         }
       }
 
@@ -67,9 +67,24 @@ class Util {
       update = update.next
     }
 
+    if (update.callback) {
+      let _callBackList = queue.callbackList
+      if (_callBackList === null) {
+        _callBackList = queue.callbackList = []
+      }
+      _callBackList.push(update)
+    }
+
+    if (queue.callbackList !== null) {
+      workInProgress.effectTag |= constance.effects.Callback
+    } else if (!queue.first && !queue.hasForceUpdate && !queue.capturedValues) {
+      // The queue is empty. We can reset it.
+      workInProgress.updateQueue = null
+    }
+
     if (!didSkip) {
       didSkip = true,
-      quene.baseState = state
+      queue.baseState = state
     }
     return state
   }

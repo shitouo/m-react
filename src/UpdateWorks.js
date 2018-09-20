@@ -112,7 +112,6 @@ class UpdateWorks {
       const prevState = workInProgress.memorizedState
       const state = util.processUpdateQueue(current, workInProgress, updateQueue, null, null, renderExpirationTime)
       workInProgress.memorizedState = state
-      updateQueue = workInProgress.updateQueue
       let element
       if (prevState === state) {
         // if the state is the same as before, that's a bailout because we had no work that expires at this time
@@ -285,8 +284,21 @@ class UpdateWorks {
     const child = currentFirstChild
 
     while (child) {
-      // TODO
-      break
+      // 已经装载过child
+      if (child.key === key) {
+        if (child.tag === constance.tags.Fragment ? element.type === constance.$$types.REACT_FRAGMENT_TYPE : child.type === element.type) {
+          let existing = this.createWorkInProgress(child, element.props, expirationTime)
+          existing.index = 0
+          existing.sibling = null
+          existing.return = child.return
+          return existing
+        }else {
+          break
+        }
+      }else {
+        // TODO
+      }
+      child = child.sibling
     }
 
     let _create4 = this.createFiberFromElement(element, expirationTime)
