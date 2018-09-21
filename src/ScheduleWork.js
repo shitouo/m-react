@@ -454,6 +454,12 @@ class ScheduleWork extends UpdateWorks {
           // Update
           let _current = nextEffect.alternate
           this.commitWork(_current, nextEffect)
+          break
+        }
+        case constance.effects.Update: {
+          let _current2 = nextEffect.alternate
+          this.commitWork(_current2, nextEffect)
+          break
         }
       }
       nextEffect = nextEffect.nextEffect;
@@ -594,7 +600,7 @@ class ScheduleWork extends UpdateWorks {
       }else if (propKey === 'children') {
         if (propValue) {
           let firstChild = domElement.firstChild
-          if (firstChild && firstChild === node.lastChild && firstChild.nodeType === 3) {
+          if (firstChild && firstChild === domElement.lastChild && firstChild.nodeType === 3) {
             firstChild.nodeValue = propValue
             return
           }
